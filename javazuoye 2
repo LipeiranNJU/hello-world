@@ -30,6 +30,7 @@ public class MiniMaxDecider implements Decider {
 	private Map<State, Float> computedStates;
 	// Used to generate a graph of the search space for each turn in SVG format
 	private static final boolean DEBUG = true;
+	private long time;
 	
 	/**
 	 * Initialize this MiniMaxDecider. 
@@ -52,6 +53,8 @@ public class MiniMaxDecider implements Decider {
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public Action decide(State state) {
+		double alpha = Double.NEGATIVE_INFINITY;
+		double beta = Double.POSITIVE_INFINITY;
 		// Choose randomly between equally good options
 		float value = maximize ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY;
 		List<Action> bestActions = new ArrayList<Action>();
@@ -61,6 +64,7 @@ public class MiniMaxDecider implements Decider {
 			try {
 				// Algorithm!
 				State newState = action.applyTo(state);
+				float newValue = this.miniMaxRecursor(newState, 1, !this.maximize, alpha, beta);
 				float newValue = this.miniMaxRecursor(newState, 1, !this.maximize);
 				// Better candidates?
 				if (flag * newValue > flag * value) {
@@ -73,8 +77,13 @@ public class MiniMaxDecider implements Decider {
 				throw new RuntimeException("Invalid action!");
 			}
 		}
+		long endTime = System.nanoTime();
+        	long usedTime = (endTime - startTime);
+        	this.time += usedTime;
+        	System.out.println(usedTime + " 纳秒");
 		// If there are more than one best actions, pick one of the best randomly
 		Collections.shuffle(bestActions);
+		System.out.println("总时间"+this.time);
 		return bestActions.get(0);
 	}
 	
@@ -89,7 +98,7 @@ public class MiniMaxDecider implements Decider {
 	 * @return The best point count we can get on this branch of the state space to the specified depth.
 	 */
 	@SuppressWarnings({ "rawtypes", "unchecked" })
-	public float miniMaxRecursor(State state, int depth, boolean maximize) {
+	public float miniMaxRecursor(State state, int depth, boolean maximize, double alpha, double beta) {
 		// Has this state already been computed?
 		if (computedStates.containsKey(state)) 
                     // Return the stored result
@@ -111,10 +120,23 @@ public class MiniMaxDecider implements Decider {
 			// Check it. Is it better? If so, keep it.
 			try {
 				State childState = action.applyTo(state);
-				float newValue = this.miniMaxRecursor(childState, depth + 1, !maximize);
+				float newValue = this.miniMaxRecursor(childState, depth + 1, !maximize, alpha, beta);
 				//Record the best value
-                                if (flag * newValue > flag * value) 
-                                    value = newValue;
+				if (flag == 1){
+					if (flag * newValue < flag * alpha)
+						break;
+				} else {
+					if (flag * newValue < flag * beta)
+						break;
+				}
+				if (flag * newValue > flag * value) {
+                    			value = newValue;
+					if (flag == 1){
+						alpha = newValue;
+					} else {
+						beta = newValue;
+					}
+                }
 			} catch (InvalidActionException e) {
                                 //Should not go here
 				throw new RuntimeException("Invalid action!");
